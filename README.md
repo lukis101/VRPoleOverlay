@@ -1,6 +1,6 @@
 # VRPoleOverlay
 
-### [Download Here](https://github.com/rrazgriz/VRPoleOverlay/releases/latest)
+### [Download Here](https://github.com/lukis101/VRPoleOverlay/releases/latest)
 
 Project based on [VRCMicOverlay by rrazgriz](https://github.com/rrazgriz/VRCMicOverlay) (MIT licensed)  
 Edits and new additions are also licensed under MIT  
@@ -10,7 +10,7 @@ Includes in-VR calibration/positioning using controllers, basic interactions via
 
 ## Usage
 
-1. **Download** [the latest release](https://github.com/rrazgriz/VRPoleOverlay/releases/latest) and **extract** to your preferred folder. All files are necessary. 
+1. **Download** [the latest release](https://github.com/lukis101/VRPoleOverlay/releases/latest) and **extract** to your preferred folder. All files are necessary. 
 2. **Run** `VRPoleOverlay.exe` with SteamVR open. The first time, you'll get asked if you want to make the app auto-start with SteamVR. Don't select yes if you plan on changing the program location after trying it out!
 3. **Calibrate** the pole:  
   3.1. Hit `E` key in console to enter edit mode (indicated by the pole 'blinking').  
