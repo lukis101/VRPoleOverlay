@@ -1,0 +1,53 @@
+name: "Publish"
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+env:
+  PROJECT_PATH: VRPoleOverlay/VRPoleOverlay.csproj
+  PUBLISH_PATH: VRPoleOverlay/bin/Release/net8.0/win-x64/publish/
+  ZIP_FILENAME: "VRPoleOverlay-${{ github.ref_name }}.zip"
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: windows-latest
+    steps:
+      - name: Initialize Actions
+        uses: actions/checkout@v2
+
+      - name: Initialize .Net
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore Project
+        run: dotnet restore ${{ env.PROJECT_PATH }}
+
+      - name: Publish Project
+        run: dotnet publish ${{ env.PROJECT_PATH }} -c Release --no-restore
+
+      - run: Copy-Item "README.md" -Destination "${{ env.PUBLISH_PATH }}"
+
+      - run: Copy-Item "LICENSE.md" -Destination "${{ env.PUBLISH_PATH }}"
+
+      - name: Create Zip File
+        uses: thedoctor0/zip-release@09336613be18a8208dfa66bd57efafd9e2685657
+        with:
+          type: "zip"
+          directory: "${{ env.PUBLISH_PATH }}"
+          path: "."
+          filename: "../../../../../../${{ env.ZIP_FILENAME }}"
+          exclusions: '*.pdb'
+
+      - name: Make Release
+        uses: softprops/action-gh-release@1e07f4398721186383de40550babbdf2b84acfc5
+        with:
+          name: "VRPoleOverlay ${{ github.ref_name }}"
+          tag_name: ${{ github.ref_name }}
+          files: "${{ env.ZIP_FILENAME }}"
