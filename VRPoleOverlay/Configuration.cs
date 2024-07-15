@@ -15,6 +15,8 @@ namespace DJL.VRPoleOverlay
         public byte COLOR_G = 255;             // Tint color, 0-255
         public byte COLOR_B = 255;             //
         public float TRANSPARENCY = 0.3f;      // 0 - invisible, 1 - solid
+        public float FADE_NEAR = 0.8f;         // Overlay is fully visible, when distance is lower than this
+        public float FADE_FAR = 1.5f;          // Overlay is invisible, when distance is higher than this
 
         public float POS_X = 0.0f;             // Distance left/right of origin (negative is left)
         public float POS_Y = 0.0f;             // Distance up/down of origin (negative is down)

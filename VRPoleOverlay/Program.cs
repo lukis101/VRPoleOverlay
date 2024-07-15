@@ -1,4 +1,4 @@
-﻿using System.Numerics;
+using System.Numerics;
 using System.Diagnostics;
 using Valve.VR;
 using System.Runtime.InteropServices;
@@ -319,6 +319,17 @@ namespace DJL.VRPoleOverlay
                         var hmdpos = new Vector3(poses[0].mDeviceToAbsoluteTracking.m3 - translation.X, 0, poses[0].mDeviceToAbsoluteTracking.m11 - translation.Z);
                         if (hmdpos.X == 0 && hmdpos.Z == 0)
                             continue;
+
+                        // Distance fade
+                        if (!editMode)
+                        {
+                            float distance = hmdpos.Length();
+                            float fade = 1f - smootherstep(config.FADE_NEAR, config.FADE_FAR, distance);
+                            OVRUtilities.EVROverlayErrorHandler(OpenVR.Overlay.SetOverlayAlpha(overlayHandle, config.TRANSPARENCY * fade));
+                            if (fade < 0.001f) // invisible, can skip logic
+                                continue;
+                        }
+
                         float angle = MathF.Atan2(hmdpos.X, hmdpos.Z);
                         if (!float.IsNormal(angle))
                             continue;
@@ -429,6 +440,20 @@ namespace DJL.VRPoleOverlay
             }
 
             OVRUtilities.EVROverlayErrorHandler(OpenVR.Overlay.ShowOverlay(overlayHandle));
+        }
+
+        // https://en.wikipedia.org/wiki/Smoothstep
+        static float smootherstep(float edge0, float edge1, float x)
+        {
+            // Scale, and clamp x to 0..1 range
+            x = clamp((x - edge0) / (edge1 - edge0));
+            return x * x * x * (x * (6.0f * x - 15.0f) + 10.0f);
+        }
+        static float clamp(float x, float lowerlimit = 0.0f, float upperlimit = 1.0f)
+        {
+            if (x < lowerlimit) return lowerlimit;
+            if (x > upperlimit) return upperlimit;
+            return x;
         }
     }
 }
