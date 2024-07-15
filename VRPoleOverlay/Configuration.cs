@@ -45,7 +45,7 @@ namespace DJL.VRPoleOverlay
             float ClampFloat(float input, float min, float max) => MathF.Max(min, MathF.Min(input, max));
             byte ClampByte(byte input, byte max) => input > max ? max : input;
 
-            Configuration defaultConfig = new Configuration();
+            //Configuration defaultConfig = new Configuration();
 
             const float coordinateLimitMin = -100;
             const float coordinateLimitMax =  100;

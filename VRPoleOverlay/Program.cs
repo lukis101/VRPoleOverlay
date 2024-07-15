@@ -1,4 +1,4 @@
-using System.Numerics;
+﻿using System.Numerics;
 using System.Diagnostics;
 using Valve.VR;
 using System.Runtime.InteropServices;
@@ -27,7 +27,7 @@ namespace DJL.VRPoleOverlay
             // Settings
             config = new Configuration();
             settingsPath = Path.Combine(new string[] { executablePath, config.SETTINGS_FILENAME });
-            LoadSettings();
+            bool usingDefaults = LoadSettings();
 
             // OpenVR Setup
             var error = new ETrackedPropertyError();
@@ -45,12 +45,12 @@ namespace DJL.VRPoleOverlay
             }
 
             // Optional auto-start
-            bool firsttime = false;
+            bool needInteraction = false;
             if (config.ASK_AUTOSTART)
             {
                 if (!OpenVR.Applications.IsApplicationInstalled(config.APPLICATION_KEY))
                 {
-                    firsttime = true;
+                    needInteraction = true;
                     Console.WriteLine("Do you want to make this app auto-start with SteamVR?");
                     Console.WriteLine("[Y]es, [N]o, No and [D]on't ask again");
                     ConsoleKeyInfo key = Console.ReadKey();
@@ -74,7 +74,7 @@ namespace DJL.VRPoleOverlay
 
 #if !DEBUG
             // Don't minimize when debugging or running first time
-            if (!firsttime)
+            if (!needInteraction || usingDefaults)
             {
                 Console.WriteLine("Minimizing Window");
                 WindowsUtilities.SetWindowState(WindowsUtilities.GetConsoleWindow(), WindowsUtilities.CMDSHOW.SW_MINIMIZE);
@@ -115,7 +115,14 @@ namespace DJL.VRPoleOverlay
             Vector3 draggingStart = Vector3.Zero;
             Vector3 draggingCurrent = Vector3.Zero;
             TrackedDevicePose_t[] poses = new TrackedDevicePose_t[OpenVR.k_unMaxTrackedDeviceCount];
-            var settingserror = new EVRSettingsError();
+            //var settingserror = new EVRSettingsError();
+
+            if (usingDefaults)
+            {
+                editMode = true;
+                Console.WriteLine("");
+                Console.WriteLine("First run - edit mode ACTIVATED");
+            }
 
             while (running)
             {
@@ -378,8 +385,9 @@ namespace DJL.VRPoleOverlay
             return false;
         }
 
-        static void LoadSettings()
+        static bool LoadSettings()
         {
+            bool usingdefaults = true;
             if (File.Exists(settingsPath))
             {
                 try
@@ -387,6 +395,7 @@ namespace DJL.VRPoleOverlay
                     string jsonString = File.ReadAllText(settingsPath);
                     config = JsonSerializer.Deserialize<Configuration>(jsonString, serOptions) ?? new Configuration();
                     Console.WriteLine($"Using settings from {settingsPath}");
+                    usingdefaults = false;
 
                     // Write config back, in case it's been updated
                     config.Validate();
@@ -410,6 +419,7 @@ namespace DJL.VRPoleOverlay
             Console.WriteLine("Configuration:");
             Console.WriteLine(JsonSerializer.Serialize(config, serOptions));
 #endif
+            return usingdefaults;
         }
         static void SaveSettings()
         {
