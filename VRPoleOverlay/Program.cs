@@ -1,4 +1,4 @@
-﻿using System.Numerics;
+using System.Numerics;
 using System.Diagnostics;
 using Valve.VR;
 using System.Runtime.InteropServices;
@@ -112,6 +112,7 @@ namespace DJL.VRPoleOverlay
             bool lastDoublePressed = false;
             bool dragging = false;
             uint draggingDevice = 0;
+            uint lastPressedDevice = 0;
             Vector3 draggingStart = Vector3.Zero;
             Vector3 draggingCurrent = Vector3.Zero;
             TrackedDevicePose_t[] poses = new TrackedDevicePose_t[OpenVR.k_unMaxTrackedDeviceCount];
@@ -201,10 +202,12 @@ namespace DJL.VRPoleOverlay
                                     //Console.WriteLine("Event: Trigger down");
                                     long timedif = stopWatchDoublePress.ElapsedMilliseconds;
                                     stopWatchDoublePress.Restart();
-                                    if ((timedif < 400) && (timedif > 100) && !lastDoublePressed)
+                                    if ((timedif < 400) && (timedif > 100) && !dragging &&
+                                        !lastDoublePressed && (lastPressedDevice == vrEvent.trackedDeviceIndex))
                                     {
                                         //Console.WriteLine("Event: DOUBLE PRESS");
                                         lastDoublePressed = true;
+                                        lastPressedDevice = vrEvent.trackedDeviceIndex;
                                         var targetdevice = vrEvent.trackedDeviceIndex;
                                         if (targetdevice >= OpenVR.k_unMaxTrackedDeviceCount)
                                         {
@@ -239,6 +242,7 @@ namespace DJL.VRPoleOverlay
                                     else
                                     {
                                         lastDoublePressed = false;
+                                        lastPressedDevice = vrEvent.trackedDeviceIndex;
                                         if (!dragging) // not already dragging with different controller
                                         {
                                             draggingDevice = vrEvent.trackedDeviceIndex;
@@ -260,17 +264,16 @@ namespace DJL.VRPoleOverlay
                                     dragging = false;
                                     break;
                                 }
-                                if (vrEvent.data.controller.button == (uint)EVRButtonId.k_EButton_SteamVR_Trigger)
+                                if (dragging &&
+                                    (draggingDevice == vrEvent.trackedDeviceIndex) &&
+                                    (vrEvent.data.controller.button == (uint)EVRButtonId.k_EButton_SteamVR_Trigger))
                                 {
-                                    if (dragging)
-                                    {
-                                        var dragresult = draggingStart - draggingCurrent;
-                                        config.POS_X -= dragresult.X * config.DRAG_SCALE;
-                                        config.POS_Z -= dragresult.Z * config.DRAG_SCALE;
-                                        translation.X = config.POS_X;
-                                        translation.Z = config.POS_Z;
-                                        dragging = false;
-                                    }
+                                    var dragresult = draggingStart - draggingCurrent;
+                                    config.POS_X -= dragresult.X * config.DRAG_SCALE;
+                                    config.POS_Z -= dragresult.Z * config.DRAG_SCALE;
+                                    translation.X = config.POS_X;
+                                    translation.Z = config.POS_Z;
+                                    dragging = false;
                                 }
                                 break;
 
