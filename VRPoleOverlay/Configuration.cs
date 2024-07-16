@@ -10,6 +10,8 @@ namespace DJL.VRPoleOverlay
 
         public bool ALWAYS_ON_TOP = false;     // Whether to show over all other overlays or not
         public bool ASK_AUTOSTART = true;      // Whether to ask for registering app to auto-start with VR
+        public bool USE_CHAPERONE_COLOR = true;  // Match color of SteamVR chaperone, custom COLOR_X params not overriden
+        public bool USE_CHAPERONE_HEIGHT = true; // Match height of SteamVR chaperone, custom height param not overriden
 
         public byte COLOR_R = 255;             //
         public byte COLOR_G = 255;             // Tint color, 0-255

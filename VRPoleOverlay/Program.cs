@@ -1,4 +1,4 @@
-using System.Numerics;
+﻿using System.Numerics;
 using System.Diagnostics;
 using Valve.VR;
 using System.Runtime.InteropServices;
@@ -16,6 +16,10 @@ namespace DJL.VRPoleOverlay
         // These only need to be (re)calculated when reading config
         static private Vector3 translation = Vector3.Zero;
         static private Matrix4x4 scale = Matrix4x4.Identity;
+        static private int chapCol_r = 255;
+        static private int chapCol_g = 255;
+        static private int chapCol_b = 255;
+        static private float chapHeight = 3f;
 
         static void Main(string[] args)
         {
@@ -89,6 +93,8 @@ namespace DJL.VRPoleOverlay
                 return;
             }
             ConfigureOverlay(overlayHandle);
+            UpdateFromChaperone(overlayHandle);
+            CacheConfig();
 
             // Run at display frequency in edit mode, one-third otherwise
             // TODO: react to refresh rate changes
@@ -116,7 +122,6 @@ namespace DJL.VRPoleOverlay
             Vector3 draggingStart = Vector3.Zero;
             Vector3 draggingCurrent = Vector3.Zero;
             TrackedDevicePose_t[] poses = new TrackedDevicePose_t[OpenVR.k_unMaxTrackedDeviceCount];
-            //var settingserror = new EVRSettingsError();
 
             if (usingDefaults)
             {
@@ -145,6 +150,7 @@ namespace DJL.VRPoleOverlay
                             case ConsoleKey.R:
                                 Console.WriteLine("Reloading config");
                                 LoadSettings();
+                                CacheConfig();
                                 ConfigureOverlay(overlayHandle);
                                 break;
                             case ConsoleKey.E:
@@ -159,6 +165,7 @@ namespace DJL.VRPoleOverlay
                                     Console.WriteLine("Edit mode deactivated. Saving config");
                                     stopWatchEditing.Stop();
                                     SaveSettings();
+                                    CacheConfig();
                                     ConfigureOverlay(overlayHandle);
                                 }
                                 break;
@@ -175,7 +182,7 @@ namespace DJL.VRPoleOverlay
                         {
                             case (uint)EVREventType.VREvent_ImageLoaded: // Doesn't fire for some reason...
                                 {
-                                    Console.WriteLine("Event: Image laoded");
+                                    //Console.WriteLine("Event: Image laoded");
                                     //uint tw = 512, th = 1024;
                                     //OVRUtilities.EVROverlayErrorHandler(OpenVR.Overlay.GetOverlayTextureSize(overlayHandle, ref tw, ref th));
                                     //aspect = (float)tw / th;
@@ -189,6 +196,7 @@ namespace DJL.VRPoleOverlay
                             case (uint)EVREventType.VREvent_ReloadOverlays:
                                 Console.WriteLine("Event: ReloadOverlays...");
                                 LoadSettings();
+                                CacheConfig();
                                 ConfigureOverlay(overlayHandle);
                                 break;
 
@@ -236,8 +244,7 @@ namespace DJL.VRPoleOverlay
                                             //Console.WriteLine($"Compensated floor H: {config.POS_Y}");
                                         }
                                         //Console.WriteLine($"Snapping to: {config.POS_X}, {config.POS_Y}, {config.POS_Z}");
-
-                                        ConfigureOverlay(overlayHandle);
+                                        CacheConfig();
                                     }
                                     else
                                     {
@@ -271,26 +278,20 @@ namespace DJL.VRPoleOverlay
                                     var dragresult = draggingStart - draggingCurrent;
                                     config.POS_X -= dragresult.X * config.DRAG_SCALE;
                                     config.POS_Z -= dragresult.Z * config.DRAG_SCALE;
-                                    translation.X = config.POS_X;
-                                    translation.Z = config.POS_Z;
                                     dragging = false;
+                                    CacheConfig();
                                 }
                                 break;
 
                             case (uint)EVREventType.VREvent_ChaperoneUniverseHasChanged:
-                            //    Console.WriteLine("Event: ChaperoneUniverseHasChanged");
-                            //    {
-                            //        Console.WriteLine("Event: ChaperoneDataHasChanged");
-                            //        float newheight = 0;
-                            //        GetFloorHeight(ref newheight);
-                            //    }
+                                //Console.WriteLine("Event: ChaperoneUniverseHasChanged");
+                                UpdateFromChaperone(overlayHandle);
+                                CacheConfig();
                                 break;
                             case (uint)EVREventType.VREvent_ChaperoneSettingsHaveChanged:
                                 //Console.WriteLine("Event: ChaperoneSettingsHaveChanged");
-                                // TODO: Hide overlay if chaperone and floor bounds are hidden (not forced and 0 fade distance)
-                                // Unfortunately, OpenVR.Chaperone.ForceBoundsVisible is write-only...
-                                //float fadedist = OpenVR.Settings.GetFloat(OpenVR.k_pch_CollisionBounds_Section, OpenVR.k_pch_CollisionBounds_FadeDistance_Float, ref settingserror);
-                                //if (fadedist < 0.01)
+                                UpdateFromChaperone(overlayHandle);
+                                CacheConfig();
                                 break;
                         }
                     }
@@ -432,27 +433,61 @@ namespace DJL.VRPoleOverlay
 
         static void ConfigureOverlay(ulong overlayHandle)
         {
-            // Cache derived values
-            float aspect = 0.5f; // TODO: retrieve from the texture
-            float overlaywidth = config.DIAMETER * MathF.PI;
-            scale = Matrix4x4.CreateScale(overlaywidth, config.HEIGHT * aspect, overlaywidth);
-            translation.X = config.POS_X;
-            translation.Y = config.POS_Y + config.HEIGHT / 2;
-            translation.Z = config.POS_Z;
-
             string PoleTexPath = Path.Combine(new string[] { executablePath, config.FILENAME_IMG_POLE });
-
             OVRUtilities.EVROverlayErrorHandler(OpenVR.Overlay.SetOverlayFromFile(overlayHandle, PoleTexPath));
-            OVRUtilities.EVROverlayErrorHandler(OpenVR.Overlay.SetOverlayAlpha(overlayHandle, config.TRANSPARENCY));
-            OVRUtilities.EVROverlayErrorHandler(OpenVR.Overlay.SetOverlayColor(overlayHandle, config.COLOR_R / 255f, config.COLOR_G / 255f, config.COLOR_B / 255f));
-            OVRUtilities.EVROverlayErrorHandler(OpenVR.Overlay.SetOverlayCurvature(overlayHandle, 1f)); // easy cylinder :)
 
+            if (config.USE_CHAPERONE_COLOR)
+                OVRUtilities.EVROverlayErrorHandler(OpenVR.Overlay.SetOverlayColor(overlayHandle, chapCol_r / 255f, chapCol_g / 255f, chapCol_b / 255f));
+            else
+                OVRUtilities.EVROverlayErrorHandler(OpenVR.Overlay.SetOverlayColor(overlayHandle, config.COLOR_R / 255f, config.COLOR_G / 255f, config.COLOR_B / 255f));
+            OVRUtilities.EVROverlayErrorHandler(OpenVR.Overlay.SetOverlayAlpha(overlayHandle, config.TRANSPARENCY));
+
+            OVRUtilities.EVROverlayErrorHandler(OpenVR.Overlay.SetOverlayCurvature(overlayHandle, 1f)); // easy cylinder :)
             if (config.ALWAYS_ON_TOP)
             {
                 OVRUtilities.EVROverlayErrorHandler(OpenVR.Overlay.SetOverlaySortOrder(overlayHandle, uint.MaxValue));
             }
 
             OVRUtilities.EVROverlayErrorHandler(OpenVR.Overlay.ShowOverlay(overlayHandle));
+        }
+
+        // Cache values derived from config (own and SteamVR)
+        static void CacheConfig()
+        {
+            float aspect = 0.5f; // TODO: retrieve from the texture
+            float overlaywidth = config.DIAMETER * MathF.PI;
+            float overlayheight = config.USE_CHAPERONE_HEIGHT ? chapHeight : config.HEIGHT;
+            scale = Matrix4x4.CreateScale(overlaywidth, overlayheight * aspect, overlaywidth);
+            translation.X = config.POS_X;
+            translation.Y = config.POS_Y + overlayheight / 2;
+            translation.Z = config.POS_Z;
+        }
+
+        // Fetch config of SteamVR chaperone
+        static void UpdateFromChaperone(ulong overlayHandle)
+        {
+            var settingserror = new EVRSettingsError();
+
+            // TODO: Hide overlay if chaperone and floor bounds are hidden (not forced and 0 fade distance)
+            // Unfortunately, OpenVR.Chaperone.ForceBoundsVisible is write-only...
+            //float fadedist = OpenVR.Settings.GetFloat(OpenVR.k_pch_CollisionBounds_Section, OpenVR.k_pch_CollisionBounds_FadeDistance_Float, ref settingserror);
+            //if (fadedist < 0.01)
+
+            // Color
+            chapCol_r = OpenVR.Settings.GetInt32(OpenVR.k_pch_CollisionBounds_Section, OpenVR.k_pch_CollisionBounds_ColorGammaR_Int32, ref settingserror);
+            chapCol_g = OpenVR.Settings.GetInt32(OpenVR.k_pch_CollisionBounds_Section, OpenVR.k_pch_CollisionBounds_ColorGammaG_Int32, ref settingserror);
+            chapCol_b = OpenVR.Settings.GetInt32(OpenVR.k_pch_CollisionBounds_Section, OpenVR.k_pch_CollisionBounds_ColorGammaB_Int32, ref settingserror);
+            //Console.WriteLine($"Chaperone color: {chapCol_r} {chapCol_g} {chapCol_b}");
+            if (config.USE_CHAPERONE_COLOR)
+                OVRUtilities.EVROverlayErrorHandler(OpenVR.Overlay.SetOverlayColor(overlayHandle, chapCol_r / 255f, chapCol_g / 255f, chapCol_b / 255f));
+            else
+                OVRUtilities.EVROverlayErrorHandler(OpenVR.Overlay.SetOverlayColor(overlayHandle, config.COLOR_R / 255f, config.COLOR_G / 255f, config.COLOR_B / 255f));
+
+            // Height
+            chapHeight = OpenVR.Settings.GetFloat(OpenVR.k_pch_CollisionBounds_Section, OpenVR.k_pch_CollisionBounds_WallHeight_Float, ref settingserror);
+            //Console.WriteLine($"Chaperone height: {chapHeight}");
+            if (config.USE_CHAPERONE_HEIGHT)
+                OVRUtilities.EVROverlayErrorHandler(OpenVR.Overlay.SetOverlayColor(overlayHandle, chapCol_r / 255f, chapCol_g / 255f, chapCol_b / 255f));
         }
 
         // https://en.wikipedia.org/wiki/Smoothstep
